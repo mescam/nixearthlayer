@@ -175,3 +175,7 @@ This repository includes GitHub Actions that:
 ## License
 
 This flake is MIT licensed. xearthlayer itself is [MIT licensed](https://github.com/samsoir/xearthlayer/blob/main/LICENSE).
+
+## Disclaimer
+
+This is an unofficial Nix packaging of xearthlayer. I am not the author of xearthlayer and have no affiliation with the upstream project. For issues with xearthlayer itself, please refer to the [upstream repository](https://github.com/samsoir/xearthlayer).
