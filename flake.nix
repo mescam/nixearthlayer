@@ -91,24 +91,165 @@
       nixosModules.default = { config, lib, pkgs, ... }:
         with lib;
         let
-          cfg = config.programs.xearthlayer;
+          cfg = config.services.xearthlayer;
+
+          providerType = types.enum [ "bing" "go2" "google" "apple" "arcgis" "mapbox" "usgs" ];
+          
+          formatIniValue = v:
+            if builtins.isBool v then (if v then "true" else "false")
+            else toString v;
+
+          generateIni = settings:
+            let
+              formatSection = name: attrs:
+                let
+                  nonNullAttrs = filterAttrs (n: v: v != null) attrs;
+                  lines = mapAttrsToList (k: v: "${k} = ${formatIniValue v}") nonNullAttrs;
+                in
+                if nonNullAttrs == {} then ""
+                else "[${name}]\n${concatStringsSep "\n" lines}\n";
+            in
+            concatStringsSep "\n" (filter (s: s != "") (mapAttrsToList formatSection settings));
+
+          configFile = pkgs.writeText "xearthlayer-config.ini" (generateIni {
+            provider = {
+              type = cfg.provider.type;
+              google_api_key = cfg.provider.googleApiKey;
+              mapbox_access_token = cfg.provider.mapboxAccessToken;
+            };
+            cache = {
+              directory = cfg.cache.directory;
+              memory_size = cfg.cache.memorySize;
+              disk_size = cfg.cache.diskSize;
+              disk_io_profile = cfg.cache.diskIoProfile;
+            };
+            texture = {
+              format = cfg.texture.format;
+              mipmaps = cfg.texture.mipmaps;
+            };
+            prefetch = {
+              enabled = cfg.prefetch.enable;
+              mode = cfg.prefetch.mode;
+              udp_port = cfg.prefetch.udpPort;
+            };
+            xplane = {
+              scenery_dir = cfg.xplane.sceneryDir;
+            };
+          });
         in
         {
-          options.programs.xearthlayer = {
-            enable = mkEnableOption "xearthlayer - satellite imagery for X-Plane";
+          options.services.xearthlayer = {
+            enable = mkEnableOption "xearthlayer - streaming satellite imagery for X-Plane 12";
 
             package = mkOption {
               type = types.package;
               default = self.packages.${pkgs.system}.xearthlayer;
               description = "The xearthlayer package to use";
             };
+
+            provider = {
+              type = mkOption {
+                type = providerType;
+                default = "bing";
+                description = "Satellite imagery provider";
+              };
+
+              googleApiKey = mkOption {
+                type = types.nullOr types.str;
+                default = null;
+                description = "Google Maps API key (required when provider is 'google')";
+              };
+
+              mapboxAccessToken = mkOption {
+                type = types.nullOr types.str;
+                default = null;
+                description = "MapBox access token (required when provider is 'mapbox')";
+              };
+            };
+
+            cache = {
+              directory = mkOption {
+                type = types.nullOr types.path;
+                default = null;
+                description = "Cache directory (default: ~/.cache/xearthlayer)";
+              };
+
+              memorySize = mkOption {
+                type = types.nullOr types.str;
+                default = null;
+                example = "4GB";
+                description = "Maximum RAM for in-memory cache";
+              };
+
+              diskSize = mkOption {
+                type = types.nullOr types.str;
+                default = null;
+                example = "50GB";
+                description = "Maximum disk space for persistent cache";
+              };
+
+              diskIoProfile = mkOption {
+                type = types.nullOr (types.enum [ "auto" "hdd" "ssd" "nvme" ]);
+                default = null;
+                description = "Disk I/O concurrency profile";
+              };
+            };
+
+            texture = {
+              format = mkOption {
+                type = types.nullOr (types.enum [ "bc1" "bc3" ]);
+                default = null;
+                description = "DDS compression format (bc1 = smaller, bc3 = with alpha)";
+              };
+
+              mipmaps = mkOption {
+                type = types.nullOr types.int;
+                default = null;
+                description = "Number of mipmap levels (1-10)";
+              };
+            };
+
+            prefetch = {
+              enable = mkOption {
+                type = types.nullOr types.bool;
+                default = null;
+                description = "Enable predictive tile prefetching";
+              };
+
+              mode = mkOption {
+                type = types.nullOr (types.enum [ "auto" "aggressive" "opportunistic" "disabled" ]);
+                default = null;
+                description = "Prefetch mode";
+              };
+
+              udpPort = mkOption {
+                type = types.nullOr types.port;
+                default = null;
+                description = "UDP port for X-Plane telemetry";
+              };
+            };
+
+            xplane = {
+              sceneryDir = mkOption {
+                type = types.nullOr types.path;
+                default = null;
+                description = "X-Plane Custom Scenery directory";
+              };
+            };
+
+            configFile = mkOption {
+              type = types.path;
+              default = configFile;
+              description = "Generated config file path (read-only)";
+              readOnly = true;
+            };
           };
 
           config = mkIf cfg.enable {
             environment.systemPackages = [ cfg.package ];
-
-            # FUSE is required for xearthlayer
             programs.fuse.userAllowOther = true;
+
+            environment.etc."xearthlayer/config.ini".source = cfg.configFile;
           };
         };
     };
