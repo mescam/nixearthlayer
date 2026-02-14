@@ -1,0 +1,90 @@
+name: Check for updates
+
+on:
+  schedule:
+    # Run daily at 6:00 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-update:
+    runs-on: ubuntu-latest
+    outputs:
+      has_update: ${{ steps.check.outputs.has_update }}
+      new_version: ${{ steps.check.outputs.new_version }}
+      new_hash: ${{ steps.check.outputs.new_hash }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Check for new upstream release
+        id: check
+        run: |
+          # Get current version from flake.nix
+          CURRENT_VERSION=$(grep 'version = "' flake.nix | head -1 | sed 's/.*version = "\([^"]*\)".*/\1/')
+          echo "Current version: $CURRENT_VERSION"
+
+          # Get latest release from upstream
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/samsoir/xearthlayer/releases/latest | jq -r .tag_name)
+          LATEST_VERSION=${LATEST_RELEASE#v}
+          echo "Latest version: $LATEST_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "Update available: $CURRENT_VERSION -> $LATEST_VERSION"
+            
+            # Get new hash
+            NEW_HASH=$(nix-prefetch-url --unpack "https://github.com/samsoir/xearthlayer/archive/refs/tags/${LATEST_RELEASE}.tar.gz" 2>/dev/null)
+            NEW_SRI_HASH=$(nix hash convert --hash-algo sha256 --to sri "$NEW_HASH")
+            echo "New hash: $NEW_SRI_HASH"
+            
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            echo "new_hash=$NEW_SRI_HASH" >> $GITHUB_OUTPUT
+          else
+            echo "No update available"
+            echo "has_update=false" >> $GITHUB_OUTPUT
+          fi
+
+  update:
+    needs: check-update
+    if: needs.check-update.outputs.has_update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update flake.nix
+        run: |
+          NEW_VERSION="${{ needs.check-update.outputs.new_version }}"
+          NEW_HASH="${{ needs.check-update.outputs.new_hash }}"
+          
+          # Update version
+          sed -i "s/version = \"[^\"]*\"/version = \"$NEW_VERSION\"/" flake.nix
+          
+          # Update hash
+          sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"$NEW_HASH\"|" flake.nix
+          
+          echo "Updated to version $NEW_VERSION"
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Update flake.lock
+        run: nix flake update
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update xearthlayer to ${{ needs.check-update.outputs.new_version }}"
+          title: "Update xearthlayer to ${{ needs.check-update.outputs.new_version }}"
+          body: |
+            Automated update of xearthlayer to version ${{ needs.check-update.outputs.new_version }}.
+            
+            Upstream release: https://github.com/samsoir/xearthlayer/releases/tag/v${{ needs.check-update.outputs.new_version }}
+          branch: update-xearthlayer-${{ needs.check-update.outputs.new_version }}
+          delete-branch: true
