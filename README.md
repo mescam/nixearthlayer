@@ -144,18 +144,6 @@ The Home Manager module provides full declarative configuration and writes `~/.x
 >
 > For the full list of configuration options, see the [upstream documentation](https://github.com/samsoir/xearthlayer/blob/main/docs/configuration.md).
 
-## Providers
-
-| Provider | API Key Required | Cost | Coverage |
-|----------|------------------|------|----------|
-| `bing` | No | Free | Global |
-| `go2` | No | Free | Global (Google via public servers) |
-| `google` | Yes | Paid | Global |
-| `apple` | No | Free | Global (tokens auto-acquired) |
-| `arcgis` | No | Free | Global |
-| `mapbox` | Yes | Freemium | Global |
-| `usgs` | No | Free | US only |
-
 ## Manual Installation (without Home Manager module)
 
 If you prefer not to use the module:
