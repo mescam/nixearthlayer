@@ -10,49 +10,16 @@ Pre-built binaries are available via Cachix:
 nix run nixpkgs#cachix -- use mescam
 ```
 
-Or add manually to your NixOS configuration:
+Or add to your NixOS configuration:
 
 ```nix
 {
-  nix.settings = {
-    substituters = [ "https://mescam.cachix.org" ];
-    trusted-public-keys = [ "mescam.cachix.org-1:..." ];
-  };
+  nix.settings.substituters = [ "https://mescam.cachix.org" ];
+  # Run 'cachix use mescam' to get the public key
 }
 ```
 
 ## Installation
-
-### Flake-based NixOS
-
-```nix
-# flake.nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixearthlayer.url = "github:mescam/nixearthlayer";
-  };
-
-  outputs = { self, nixpkgs, nixearthlayer, ... }: {
-    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
-      system = "x86_64-linux";
-      modules = [
-        nixearthlayer.nixosModules.default
-        ./configuration.nix
-      ];
-    };
-  };
-}
-```
-
-### Using the overlay
-
-```nix
-{
-  nixpkgs.overlays = [ nixearthlayer.overlays.default ];
-  environment.systemPackages = [ pkgs.xearthlayer ];
-}
-```
 
 ### Ad-hoc usage
 
@@ -60,20 +27,6 @@ Or add manually to your NixOS configuration:
 nix run github:mescam/nixearthlayer
 nix shell github:mescam/nixearthlayer
 ```
-
-## NixOS Module
-
-The NixOS module installs xearthlayer and enables FUSE support. For per-user configuration, use the Home Manager module.
-
-```nix
-{
-  services.xearthlayer.enable = true;
-}
-```
-
-This:
-- Installs xearthlayer to `environment.systemPackages`
-- Enables `programs.fuse.userAllowOther` (required for FUSE mounts)
 
 ## Home Manager Module (Recommended)
 
@@ -181,10 +134,11 @@ The Home Manager module provides full declarative configuration and writes `~/.x
 
 ## Configuration Notes
 
-> **⚠️ FUSE requirement**: If using only Home Manager (not the NixOS module), you must manually enable FUSE in your NixOS config:
+> **⚠️ FUSE requirement**: xearthlayer uses FUSE to mount imagery. You must enable FUSE in your NixOS config:
 > ```nix
 > programs.fuse.userAllowOther = true;
 > ```
+> Alternatively, use `nixearthlayer.nixosModules.default` which enables FUSE automatically (and adds the package to `environment.systemPackages`).
 
 > **⚠️ Upstream changes**: The xearthlayer configuration format may change between versions. This module covers common options but not all settings. If upstream adds new options or changes existing ones, you may need to configure them manually or wait for this flake to be updated.
 >
@@ -202,9 +156,9 @@ The Home Manager module provides full declarative configuration and writes `~/.x
 | `mapbox` | Yes | Freemium | Global |
 | `usgs` | No | Free | US only |
 
-## Home Manager
+## Manual Installation (without Home Manager module)
 
-For per-user installation without the NixOS module:
+If you prefer not to use the module:
 
 ```nix
 { pkgs, nixearthlayer, ... }:
@@ -213,7 +167,7 @@ For per-user installation without the NixOS module:
 }
 ```
 
-Then run `xearthlayer setup` to configure.
+Then run `xearthlayer setup` to create `~/.xearthlayer/config.ini` interactively.
 
 ## Development
 
