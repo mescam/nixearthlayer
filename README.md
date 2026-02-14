@@ -28,7 +28,7 @@ nix run github:mescam/nixearthlayer
 nix shell github:mescam/nixearthlayer
 ```
 
-## Home Manager Module (Recommended)
+## Home Manager Module
 
 The Home Manager module provides full declarative configuration and writes `~/.xearthlayer/config.ini`.
 
@@ -60,18 +60,9 @@ The Home Manager module provides full declarative configuration and writes `~/.x
 }
 ```
 
-### Basic usage
+### Usage
 
-```nix
-{
-  programs.xearthlayer = {
-    enable = true;
-    provider.type = "bing";
-  };
-}
-```
-
-### Full example
+The configuration is quite complex, doing it first time might be too challenging. Consider following manual installation first and creating first config interactively as per upstream's docs. Then you can move your config to Nix. Please read the Configuration Notes below as well. 
 
 ```nix
 {
