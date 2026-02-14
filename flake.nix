@@ -243,6 +243,16 @@
               description = "Generated config file path (read-only)";
               readOnly = true;
             };
+
+            users = mkOption {
+              type = types.listOf types.str;
+              default = [];
+              example = [ "pilot" "jane" ];
+              description = ''
+                List of users for whom to create the config symlink.
+                Creates ~/.xearthlayer/config.ini -> /etc/xearthlayer/config.ini
+              '';
+            };
           };
 
           config = mkIf cfg.enable {
@@ -250,6 +260,18 @@
             programs.fuse.userAllowOther = true;
 
             environment.etc."xearthlayer/config.ini".source = cfg.configFile;
+
+            system.activationScripts.xearthlayer-config = lib.stringAfter [ "users" ] ''
+              ${concatMapStringsSep "\n" (user: 
+                let
+                  home = config.users.users.${user}.home;
+                in ''
+                  mkdir -p "${home}/.xearthlayer"
+                  chown ${user}:${config.users.users.${user}.group} "${home}/.xearthlayer"
+                  ln -sf /etc/xearthlayer/config.ini "${home}/.xearthlayer/config.ini"
+                ''
+              ) cfg.users}
+            '';
           };
         };
     };

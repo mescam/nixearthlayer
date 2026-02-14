@@ -71,6 +71,7 @@ The module provides declarative configuration for xearthlayer and generates a co
 {
   services.xearthlayer = {
     enable = true;
+    users = [ "pilot" ];  # Creates symlink for these users
     provider.type = "bing";
   };
 }
@@ -82,6 +83,7 @@ The module provides declarative configuration for xearthlayer and generates a co
 {
   services.xearthlayer = {
     enable = true;
+    users = [ "pilot" ];  # Users who will use xearthlayer
 
     provider = {
       type = "bing";  # bing | go2 | google | apple | arcgis | mapbox | usgs
@@ -117,6 +119,7 @@ The module provides declarative configuration for xearthlayer and generates a co
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | bool | `false` | Enable xearthlayer |
+| `users` | list of strings | `[]` | Users to create config symlink for |
 | `package` | package | `pkgs.xearthlayer` | Package to use |
 | `provider.type` | enum | `"bing"` | Imagery provider |
 | `provider.googleApiKey` | string | `null` | Google Maps API key |
@@ -137,15 +140,9 @@ The module provides declarative configuration for xearthlayer and generates a co
 - Installs xearthlayer to `environment.systemPackages`
 - Enables `programs.fuse.userAllowOther` (required for FUSE mounts)
 - Generates config at `/etc/xearthlayer/config.ini`
+- Creates symlinks `~/.xearthlayer/config.ini` for users listed in `users`
 
-## Configuration Warning
-
-> **⚠️ Important**: The generated config file is written to `/etc/xearthlayer/config.ini`, but xearthlayer expects its config at `~/.xearthlayer/config.ini` by default.
->
-> You have several options:
-> 1. Symlink: `ln -s /etc/xearthlayer/config.ini ~/.xearthlayer/config.ini`
-> 2. Run the setup wizard: `xearthlayer setup` (creates user config)
-> 3. Use the module just for installation and configure manually
+## Configuration Notes
 
 > **⚠️ Upstream changes**: The xearthlayer configuration format may change between versions. This module covers common options but not all settings. If upstream adds new options or changes existing ones, you may need to configure them manually or wait for this flake to be updated.
 >
