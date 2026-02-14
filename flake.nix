@@ -92,9 +92,31 @@
         with lib;
         let
           cfg = config.services.xearthlayer;
+        in
+        {
+          options.services.xearthlayer = {
+            enable = mkEnableOption "xearthlayer - streaming satellite imagery for X-Plane 12";
+
+            package = mkOption {
+              type = types.package;
+              default = self.packages.${pkgs.system}.xearthlayer;
+              description = "The xearthlayer package to use";
+            };
+          };
+
+          config = mkIf cfg.enable {
+            environment.systemPackages = [ cfg.package ];
+            programs.fuse.userAllowOther = true;
+          };
+        };
+
+      homeManagerModules.default = { config, lib, pkgs, ... }:
+        with lib;
+        let
+          cfg = config.programs.xearthlayer;
 
           providerType = types.enum [ "bing" "go2" "google" "apple" "arcgis" "mapbox" "usgs" ];
-          
+
           formatIniValue = v:
             if builtins.isBool v then (if v then "true" else "false")
             else toString v;
@@ -111,7 +133,7 @@
             in
             concatStringsSep "\n" (filter (s: s != "") (mapAttrsToList formatSection settings));
 
-          configFile = pkgs.writeText "xearthlayer-config.ini" (generateIni {
+          configContent = generateIni {
             provider = {
               type = cfg.provider.type;
               google_api_key = cfg.provider.googleApiKey;
@@ -135,10 +157,10 @@
             xplane = {
               scenery_dir = cfg.xplane.sceneryDir;
             };
-          });
+          };
         in
         {
-          options.services.xearthlayer = {
+          options.programs.xearthlayer = {
             enable = mkEnableOption "xearthlayer - streaming satellite imagery for X-Plane 12";
 
             package = mkOption {
@@ -169,7 +191,7 @@
 
             cache = {
               directory = mkOption {
-                type = types.nullOr types.path;
+                type = types.nullOr types.str;
                 default = null;
                 description = "Cache directory (default: ~/.cache/xearthlayer)";
               };
@@ -231,47 +253,17 @@
 
             xplane = {
               sceneryDir = mkOption {
-                type = types.nullOr types.path;
+                type = types.nullOr types.str;
                 default = null;
                 description = "X-Plane Custom Scenery directory";
               };
             };
-
-            configFile = mkOption {
-              type = types.path;
-              default = configFile;
-              description = "Generated config file path (read-only)";
-              readOnly = true;
-            };
-
-            users = mkOption {
-              type = types.listOf types.str;
-              default = [];
-              example = [ "pilot" "jane" ];
-              description = ''
-                List of users for whom to create the config symlink.
-                Creates ~/.xearthlayer/config.ini -> /etc/xearthlayer/config.ini
-              '';
-            };
           };
 
           config = mkIf cfg.enable {
-            environment.systemPackages = [ cfg.package ];
-            programs.fuse.userAllowOther = true;
+            home.packages = [ cfg.package ];
 
-            environment.etc."xearthlayer/config.ini".source = cfg.configFile;
-
-            system.activationScripts.xearthlayer-config = lib.stringAfter [ "users" ] ''
-              ${concatMapStringsSep "\n" (user: 
-                let
-                  home = config.users.users.${user}.home;
-                in ''
-                  mkdir -p "${home}/.xearthlayer"
-                  chown ${user}:${config.users.users.${user}.group} "${home}/.xearthlayer"
-                  ln -sf /etc/xearthlayer/config.ini "${home}/.xearthlayer/config.ini"
-                ''
-              ) cfg.users}
-            '';
+            home.file.".xearthlayer/config.ini".text = configContent;
           };
         };
     };

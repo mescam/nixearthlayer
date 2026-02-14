@@ -63,15 +63,56 @@ nix shell github:mescam/nixearthlayer
 
 ## NixOS Module
 
-The module provides declarative configuration for xearthlayer and generates a config file.
+The NixOS module installs xearthlayer and enables FUSE support. For per-user configuration, use the Home Manager module.
+
+```nix
+{
+  services.xearthlayer.enable = true;
+}
+```
+
+This:
+- Installs xearthlayer to `environment.systemPackages`
+- Enables `programs.fuse.userAllowOther` (required for FUSE mounts)
+
+## Home Manager Module (Recommended)
+
+The Home Manager module provides full declarative configuration and writes `~/.xearthlayer/config.ini`.
+
+### Setup
+
+```nix
+# flake.nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    home-manager.url = "github:nix-community/home-manager";
+    nixearthlayer.url = "github:mescam/nixearthlayer";
+  };
+
+  outputs = { nixpkgs, home-manager, nixearthlayer, ... }: {
+    homeConfigurations.pilot = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      modules = [
+        nixearthlayer.homeManagerModules.default
+        {
+          programs.xearthlayer = {
+            enable = true;
+            provider.type = "bing";
+          };
+        }
+      ];
+    };
+  };
+}
+```
 
 ### Basic usage
 
 ```nix
 {
-  services.xearthlayer = {
+  programs.xearthlayer = {
     enable = true;
-    users = [ "pilot" ];  # Creates symlink for these users
     provider.type = "bing";
   };
 }
@@ -81,9 +122,8 @@ The module provides declarative configuration for xearthlayer and generates a co
 
 ```nix
 {
-  services.xearthlayer = {
+  programs.xearthlayer = {
     enable = true;
-    users = [ "pilot" ];  # Users who will use xearthlayer
 
     provider = {
       type = "bing";  # bing | go2 | google | apple | arcgis | mapbox | usgs
@@ -92,7 +132,7 @@ The module provides declarative configuration for xearthlayer and generates a co
     };
 
     cache = {
-      directory = "/var/cache/xearthlayer";
+      directory = "/mnt/nvme/xearthlayer-cache";
       memorySize = "4GB";
       diskSize = "100GB";
       diskIoProfile = "nvme";  # auto | hdd | ssd | nvme
@@ -109,7 +149,7 @@ The module provides declarative configuration for xearthlayer and generates a co
       udpPort = 49002;
     };
 
-    xplane.sceneryDir = "/home/user/X-Plane 12/Custom Scenery";
+    xplane.sceneryDir = "/home/pilot/X-Plane 12/Custom Scenery";
   };
 }
 ```
@@ -119,12 +159,11 @@ The module provides declarative configuration for xearthlayer and generates a co
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enable` | bool | `false` | Enable xearthlayer |
-| `users` | list of strings | `[]` | Users to create config symlink for |
 | `package` | package | `pkgs.xearthlayer` | Package to use |
 | `provider.type` | enum | `"bing"` | Imagery provider |
 | `provider.googleApiKey` | string | `null` | Google Maps API key |
 | `provider.mapboxAccessToken` | string | `null` | MapBox access token |
-| `cache.directory` | path | `null` | Cache directory |
+| `cache.directory` | string | `null` | Cache directory |
 | `cache.memorySize` | string | `null` | Memory cache size (e.g., "4GB") |
 | `cache.diskSize` | string | `null` | Disk cache size (e.g., "50GB") |
 | `cache.diskIoProfile` | enum | `null` | Disk I/O profile |
@@ -133,16 +172,19 @@ The module provides declarative configuration for xearthlayer and generates a co
 | `prefetch.enable` | bool | `null` | Enable tile prefetching |
 | `prefetch.mode` | enum | `null` | Prefetch mode |
 | `prefetch.udpPort` | port | `null` | X-Plane telemetry UDP port |
-| `xplane.sceneryDir` | path | `null` | X-Plane Custom Scenery directory |
+| `xplane.sceneryDir` | string | `null` | X-Plane Custom Scenery directory |
 
 ### What the module does
 
-- Installs xearthlayer to `environment.systemPackages`
-- Enables `programs.fuse.userAllowOther` (required for FUSE mounts)
-- Generates config at `/etc/xearthlayer/config.ini`
-- Creates symlinks `~/.xearthlayer/config.ini` for users listed in `users`
+- Installs xearthlayer to `home.packages`
+- Generates `~/.xearthlayer/config.ini` with your settings
 
 ## Configuration Notes
+
+> **⚠️ FUSE requirement**: If using only Home Manager (not the NixOS module), you must manually enable FUSE in your NixOS config:
+> ```nix
+> programs.fuse.userAllowOther = true;
+> ```
 
 > **⚠️ Upstream changes**: The xearthlayer configuration format may change between versions. This module covers common options but not all settings. If upstream adds new options or changes existing ones, you may need to configure them manually or wait for this flake to be updated.
 >
