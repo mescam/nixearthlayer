@@ -18,7 +18,7 @@
           inherit system overlays;
         };
 
-        version = "0.4.6";
+        version = "0.5.0";
         rev = "v${version}";
 
         rustPlatform = pkgs.makeRustPlatform {
@@ -34,7 +34,7 @@
             owner = "samsoir";
             repo = "xearthlayer";
             rev = rev;
-            hash = "sha256-Ur5SEigBqglx+jE4OwtWENWmb1hwdvr7RPrQ530hdKo=";
+            hash = "sha256-fImV3MVT95Bh0Gop4b0vw4ss4IrOHD6e3J/6pVXjpwQ=";
           };
 
           cargoLock = {
